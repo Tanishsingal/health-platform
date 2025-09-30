@@ -1,0 +1,115 @@
+{
+  "common": {
+    "appName": "HealthCare Portal",
+    "tagline": "Comprehensive Healthcare Management"
+  },
+  "nav": {
+    "login": "Log in",
+    "getStarted": "Get Started",
+    "backToHome": "Back to Home"
+  },
+  "home": {
+    "hero": {
+      "badge": "Trusted by Healthcare Professionals Nationwide",
+      "title": "Modern Healthcare",
+      "titleAccent": "Management Platform",
+      "description": "Streamline patient care, manage appointments, and access medical records securely. Built for patients, doctors, and healthcare administrators.",
+      "startJourney": "Start Your Journey",
+      "accessPortal": "Access Portal"
+    },
+    "features": {
+      "title": "Comprehensive Healthcare Solutions",
+      "subtitle": "Everything you need to manage healthcare efficiently, from patient records to appointment scheduling.",
+      "patientManagement": {
+        "title": "Patient Management",
+        "description": "Comprehensive patient profiles with medical history, allergies, and treatment plans."
+      },
+      "smartScheduling": {
+        "title": "Smart Scheduling",
+        "description": "Intelligent appointment booking with automated reminders and calendar integration."
+      },
+      "digitalRecords": {
+        "title": "Digital Records",
+        "description": "Secure, searchable medical records with real-time updates and easy sharing."
+      },
+      "labIntegration": {
+        "title": "Lab Integration",
+        "description": "Seamless lab test ordering, tracking, and results management with automated alerts."
+      },
+      "hipaaCompliant": {
+        "title": "HIPAA Compliant",
+        "description": "Enterprise-grade security with role-based access and comprehensive audit trails."
+      },
+      "careCoordination": {
+        "title": "Care Coordination",
+        "description": "Streamlined communication between patients, doctors, and healthcare teams."
+      }
+    },
+    "cta": {
+      "title": "Ready to Transform Your Healthcare Experience?",
+      "subtitle": "Join thousands of healthcare professionals and patients who trust our platform for their medical needs.",
+      "createAccount": "Create Account",
+      "signIn": "Sign In"
+    },
+    "footer": {
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service",
+      "support": "Support",
+      "copyright": "© 2025 HealthCare Portal. All rights reserved. HIPAA Compliant Healthcare Management Platform."
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome Back",
+      "subtitle": "Sign in to access your healthcare portal",
+      "email": "Email Address",
+      "emailPlaceholder": "doctor@hospital.com",
+      "password": "Password",
+      "forgotPassword": "Forgot password?",
+      "signIn": "Sign In",
+      "signingIn": "Signing in...",
+      "noAccount": "Don't have an account?",
+      "createAccount": "Create account",
+      "demoTitle": "Demo Credentials - Click to Auto-fill",
+      "demoPassword": "Default password: password123",
+      "patientPortal": "👤 Patient Portal",
+      "doctorPortal": "🩺 Doctor Portal",
+      "adminPortal": "⚙️ Admin Portal",
+      "pharmacyPortal": "💊 Pharmacy Portal",
+      "nursePortal": "🔬 Nurse Portal"
+    },
+    "register": {
+      "title": "Create Account",
+      "subtitle": "Join our healthcare platform",
+      "fullName": "Full Name",
+      "email": "Email Address",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "role": "Account Type",
+      "signUp": "Sign Up",
+      "signingUp": "Creating account...",
+      "hasAccount": "Already have an account?",
+      "signIn": "Sign in"
+    }
+  },
+  "dashboard": {
+    "patient": {
+      "title": "Patient Portal",
+      "subtitle": "Your Healthcare Dashboard",
+      "logout": "Logout",
+      "welcome": "Welcome back",
+      "healthOverview": "Here's your health overview",
+      "upcomingAppointments": "Upcoming Appointments",
+      "next": "Next",
+      "noUpcomingAppointments": "No upcoming appointments",
+      "medicalRecords": "Medical Records",
+      "lastVisit": "Last visit",
+      "noRecentVisits": "No recent visits",
+      "activePrescriptions": "Active Prescriptions",
+      "currentMedications": "Current medications",
+      "healthStatus": "Health Status",
+      "statusGood": "Good",
+      "overallHealth": "Overall health"
+    }
+  }
+} 

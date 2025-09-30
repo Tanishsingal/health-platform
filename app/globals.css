@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Healthcare-inspired color palette */
+  --background: 240 5% 99%;
+  --foreground: 240 10% 15%;
+  --card: 0 0% 100%;
+  --card-foreground: 240 10% 15%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 240 10% 15%;
+  --primary: 285 81% 55%; /* Medical purple */
+  --primary-foreground: 285 20% 98%;
+  --secondary: 240 5% 96%;
+  --secondary-foreground: 240 10% 25%;
+  --muted: 240 5% 97%;
+  --muted-foreground: 240 5% 45%;
+  --accent: 285 20% 94%;
+  --accent-foreground: 240 10% 25%;
+  --destructive: 15 86% 65%;
+  --destructive-foreground: 15 20% 98%;
+  --border: 240 5% 92%;
+  --input: 240 5% 95%;
+  --ring: 285 81% 55%;
+  --chart-1: 285 81% 55%;
+  --chart-2: 200 65% 65%;
+  --chart-3: 160 70% 75%;
+  --chart-4: 320 68% 60%;
+  --chart-5: 60 70% 70%;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 240 10% 8%;
+  --foreground: 240 5% 95%;
+  --card: 240 10% 10%;
+  --card-foreground: 240 5% 95%;
+  --popover: 240 10% 10%;
+  --popover-foreground: 240 5% 95%;
+  --primary: 285 81% 65%;
+  --primary-foreground: 240 10% 8%;
+  --secondary: 240 5% 15%;
+  --secondary-foreground: 240 5% 95%;
+  --muted: 240 5% 15%;
+  --muted-foreground: 240 10% 65%;
+  --accent: 285 20% 20%;
+  --accent-foreground: 240 5% 95%;
+  --destructive: 15 86% 65%;
+  --destructive-foreground: 15 20% 95%;
+  --border: 240 5% 20%;
+  --input: 240 5% 18%;
+  --ring: 285 81% 65%;
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
