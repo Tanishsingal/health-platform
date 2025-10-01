@@ -16,11 +16,17 @@ import {
   TestTube, 
   AlertTriangle,
   User,
-  Edit
+  Edit,
+  Plus
 } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useRouter, useParams } from "next/navigation"
+import { PatientMedicalHistory } from "@/components/doctor/PatientMedicalHistory"
+import { CreatePrescriptionModal } from "@/components/doctor/CreatePrescriptionModal"
+import { CreateLabOrderModal } from "@/components/doctor/CreateLabOrderModal"
+import { ViewPrescriptionModal } from "@/components/doctor/ViewPrescriptionModal"
+import { ViewLabResultsModal } from "@/components/doctor/ViewLabResultsModal"
 
 // Mock patient data
 const PATIENT_DATA = {
@@ -96,27 +102,92 @@ const PATIENT_DATA = {
 
 export default function PatientDetailPage() {
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false)
+  const [showLabOrderModal, setShowLabOrderModal] = useState(false)
+  const [viewPrescriptionModal, setViewPrescriptionModal] = useState(false)
+  const [selectedPrescription, setSelectedPrescription] = useState<any>(null)
+  const [viewLabResultsModal, setViewLabResultsModal] = useState(false)
+  const [selectedLabTest, setSelectedLabTest] = useState<any>(null)
+  const [patientData, setPatientData] = useState<any>(null)
+  const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
   const params = useParams()
 
   useEffect(() => {
-    // Check authentication
-    const user = localStorage.getItem('currentUser')
-    if (!user) {
-      router.push('/auth/login')
-      return
-    }
-    
-    const userData = JSON.parse(user)
-    if (!["doctor", "nurse", "admin"].includes(userData.role)) {
-      router.push('/auth/login')
-      return
-    }
-    
-    setCurrentUser(userData)
-  }, [router])
+    const fetchData = async () => {
+      try {
+        // Check authentication using API
+        const authResponse = await fetch('/api/auth/me')
+        
+        if (!authResponse.ok) {
+          router.push('/auth/login')
+          return
+        }
+        
+        const authData = await authResponse.json()
+        
+        if (!["doctor", "nurse", "admin"].includes(authData.user.role)) {
+          router.push('/auth/login')
+          return
+        }
+        
+        setCurrentUser(authData.user)
 
-  if (!currentUser) {
+        // Fetch patient data
+        if (params.id) {
+          const response = await fetch(`/api/doctor/patient/${params.id}`)
+          if (response.ok) {
+            const result = await response.json()
+            if (result.success) {
+              setPatientData(result.data)
+            } else {
+              console.error('Failed to fetch patient data:', result.error)
+            }
+          } else {
+            console.error('Failed to fetch patient data: HTTP', response.status)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch data:', error)
+        router.push('/auth/login')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [router, params.id])
+
+  const refreshPatientData = async () => {
+    // Refresh patient data after creating prescription or lab order
+    if (params.id) {
+      try {
+        const response = await fetch(`/api/doctor/patient/${params.id}`)
+        if (response.ok) {
+          const result = await response.json()
+          if (result.success) {
+            setPatientData(result.data)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to refresh patient data:', error)
+      }
+    }
+  }
+
+  const handlePrescriptionSuccess = async () => {
+    console.log('Prescription created successfully')
+    // Refresh patient data to show new prescription
+    await refreshPatientData()
+  }
+
+  const handleLabOrderSuccess = async () => {
+    console.log('Lab order created successfully')
+    // Refresh patient data to show new lab order
+    await refreshPatientData()
+  }
+
+  if (!currentUser || isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
@@ -124,7 +195,46 @@ export default function PatientDetailPage() {
     )
   }
 
-  const patient = PATIENT_DATA
+  if (!patientData) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-muted-foreground">Patient not found</p>
+      </div>
+    )
+  }
+
+  const patient = patientData.patient
+  
+  // Format patient data to match the expected structure
+  const formattedPatient = {
+    id: patient.id,
+    patientId: patient.medical_record_number || 'N/A',
+    profile: {
+      firstName: patient.first_name,
+      lastName: patient.last_name,
+      dateOfBirth: patient.date_of_birth,
+      gender: patient.gender,
+      phone: patient.phone,
+      email: patient.email,
+      address: patient.address || 'Not provided'
+    },
+    medicalInfo: {
+      bloodGroup: patient.blood_type || 'N/A',
+      height: patient.height_cm ? `${patient.height_cm} cm` : 'N/A',
+      weight: patient.weight_kg ? `${patient.weight_kg} kg` : 'N/A',
+      allergies: patient.allergies || [],
+      chronicConditions: patient.chronic_conditions || [],
+      emergencyContact: {
+        name: patient.emergency_contact_name || 'Not provided',
+        relationship: patient.emergency_contact_relationship || 'N/A',
+        phone: patient.emergency_contact_phone || 'Not provided'
+      }
+    },
+    appointments: patientData.appointments || [],
+    prescriptions: patientData.prescriptions || [],
+    labTests: patientData.labTests || [],
+    consultations: [] // Consultations not implemented yet
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/20 to-background">
@@ -149,10 +259,24 @@ export default function PatientDetailPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <Button size="sm" variant="outline">
-                <Edit className="w-4 h-4 mr-2" />
-                Edit Record
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  size="sm" 
+                  variant="default"
+                  onClick={() => setShowPrescriptionModal(true)}
+                >
+                  <Pill className="w-4 h-4 mr-2" />
+                  Create Prescription
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => setShowLabOrderModal(true)}
+                >
+                  <TestTube className="w-4 h-4 mr-2" />
+                  Order Lab Test
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -170,15 +294,15 @@ export default function PatientDetailPage() {
                   </div>
                   <div>
                     <h1 className="text-2xl font-bold">
-                      {patient.profile.firstName} {patient.profile.lastName}
+                      {formattedPatient.profile.firstName} {formattedPatient.profile.lastName}
                     </h1>
-                    <p className="text-muted-foreground">Patient ID: {patient.patientId}</p>
+                    <p className="text-muted-foreground">Patient ID: {formattedPatient.patientId}</p>
                     <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                      <span>{patient.profile.gender}</span>
+                      <span>{formattedPatient.profile.gender}</span>
                       <span>•</span>
-                      <span>Age: {new Date().getFullYear() - new Date(patient.profile.dateOfBirth).getFullYear()}</span>
+                      <span>Age: {formattedPatient.profile.dateOfBirth ? new Date().getFullYear() - new Date(formattedPatient.profile.dateOfBirth).getFullYear() : 'N/A'}</span>
                       <span>•</span>
-                      <span>DOB: {new Date(patient.profile.dateOfBirth).toLocaleDateString()}</span>
+                      <span>DOB: {formattedPatient.profile.dateOfBirth ? new Date(formattedPatient.profile.dateOfBirth).toLocaleDateString() : 'N/A'}</span>
                     </div>
                   </div>
                 </div>
@@ -221,15 +345,15 @@ export default function PatientDetailPage() {
                 <CardContent className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm">{patient.profile.phone}</span>
+                    <span className="text-sm">{formattedPatient.profile.phone}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm">{patient.profile.email}</span>
+                    <span className="text-sm">{formattedPatient.profile.email}</span>
                   </div>
                   <div className="flex items-start gap-2">
                     <Heart className="w-4 h-4 text-muted-foreground mt-0.5" />
-                    <span className="text-sm">{patient.profile.address}</span>
+                    <span className="text-sm">{formattedPatient.profile.address}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -242,22 +366,22 @@ export default function PatientDetailPage() {
                 <CardContent className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Blood Group:</span>
-                    <span className="text-sm font-medium">{patient.medicalInfo.bloodGroup}</span>
+                    <span className="text-sm font-medium">{formattedPatient.medicalInfo.bloodGroup}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Height:</span>
-                    <span className="text-sm font-medium">{patient.medicalInfo.height}</span>
+                    <span className="text-sm font-medium">{formattedPatient.medicalInfo.height}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-muted-foreground">Weight:</span>
-                    <span className="text-sm font-medium">{patient.medicalInfo.weight}</span>
+                    <span className="text-sm font-medium">{formattedPatient.medicalInfo.weight}</span>
                   </div>
                   
-                  {patient.medicalInfo.allergies.length > 0 && (
+                  {formattedPatient.medicalInfo.allergies.length > 0 && (
                     <div>
                       <p className="text-sm text-muted-foreground mb-2">Allergies:</p>
                       <div className="flex flex-wrap gap-1">
-                        {patient.medicalInfo.allergies.map((allergy, index) => (
+                        {formattedPatient.medicalInfo.allergies.map((allergy: string, index: number) => (
                           <Badge key={index} variant="destructive" className="text-xs">
                             {allergy}
                           </Badge>
@@ -266,11 +390,11 @@ export default function PatientDetailPage() {
                     </div>
                   )}
 
-                  {patient.medicalInfo.chronicConditions.length > 0 && (
+                  {formattedPatient.medicalInfo.chronicConditions.length > 0 && (
                     <div>
                       <p className="text-sm text-muted-foreground mb-2">Chronic Conditions:</p>
                       <div className="flex flex-wrap gap-1">
-                        {patient.medicalInfo.chronicConditions.map((condition, index) => (
+                        {formattedPatient.medicalInfo.chronicConditions.map((condition: string, index: number) => (
                           <Badge key={index} variant="outline" className="text-xs">
                             {condition}
                           </Badge>
@@ -288,12 +412,12 @@ export default function PatientDetailPage() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div>
-                    <p className="font-medium">{patient.medicalInfo.emergencyContact.name}</p>
-                    <p className="text-sm text-muted-foreground">{patient.medicalInfo.emergencyContact.relationship}</p>
+                    <p className="font-medium">{formattedPatient.medicalInfo.emergencyContact.name}</p>
+                    <p className="text-sm text-muted-foreground">{formattedPatient.medicalInfo.emergencyContact.relationship}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm">{patient.medicalInfo.emergencyContact.phone}</span>
+                    <span className="text-sm">{formattedPatient.medicalInfo.emergencyContact.phone}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -307,7 +431,7 @@ export default function PatientDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {patient.consultations.slice(0, 3).map((consultation) => (
+                  {PATIENT_DATA.consultations.slice(0, 3).map((consultation) => (
                     <div key={consultation.id} className="flex items-start gap-3 p-3 border rounded-lg">
                       <div className="bg-blue-100 p-2 rounded-full">
                         <FileText className="w-4 h-4 text-blue-600" />
@@ -336,26 +460,30 @@ export default function PatientDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {patient.appointments.map((appointment) => (
-                    <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <Calendar className="w-6 h-6 text-primary" />
+                  {formattedPatient.appointments.length > 0 ? (
+                    formattedPatient.appointments.map((appointment: any) => (
+                      <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                            <Calendar className="w-6 h-6 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{appointment.reason || 'Consultation'}</p>
+                            <p className="text-sm text-muted-foreground">{appointment.notes || 'No notes'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(appointment.appointment_date).toLocaleDateString()} at{" "}
+                              {new Date(appointment.appointment_date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{appointment.type}</p>
-                          <p className="text-sm text-muted-foreground">{appointment.reason}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(appointment.date).toLocaleDateString()} at{" "}
-                            {new Date(appointment.date).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </p>
-                        </div>
+                        <Badge variant={appointment.status === "completed" ? "default" : "secondary"}>
+                          {appointment.status}
+                        </Badge>
                       </div>
-                      <Badge variant={appointment.status === "Completed" ? "default" : "secondary"}>
-                        {appointment.status}
-                      </Badge>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">No appointments yet</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -369,7 +497,7 @@ export default function PatientDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
-                  {patient.consultations.map((consultation) => (
+                  {PATIENT_DATA.consultations.map((consultation) => (
                     <div key={consultation.id} className="border rounded-lg p-4">
                       <div className="flex items-center justify-between mb-4">
                         <h3 className="font-medium">Consultation - {new Date(consultation.date).toLocaleDateString()}</h3>
@@ -413,25 +541,42 @@ export default function PatientDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {patient.prescriptions.map((prescription) => (
-                    <div key={prescription.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <Pill className="w-6 h-6 text-primary" />
+                  {formattedPatient.prescriptions.length > 0 ? (
+                    formattedPatient.prescriptions.map((prescription: any) => (
+                      <div key={prescription.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                            <Pill className="w-6 h-6 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{prescription.dosage}</p>
+                            <p className="text-sm text-muted-foreground">{prescription.frequency}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Duration: {prescription.duration_days ? `${prescription.duration_days} days` : 'N/A'} • Prescribed: {new Date(prescription.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{prescription.medication}</p>
-                          <p className="text-sm text-muted-foreground">{prescription.dosage}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Duration: {prescription.duration} • Prescribed: {prescription.prescribedDate}
-                          </p>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={prescription.status === "pending" ? "secondary" : "default"}>
+                            {prescription.status}
+                          </Badge>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedPrescription(prescription)
+                              setViewPrescriptionModal(true)
+                            }}
+                          >
+                            <FileText className="w-4 h-4 mr-2" />
+                            View Details
+                          </Button>
                         </div>
                       </div>
-                      <Badge variant={prescription.status === "Active" ? "default" : "secondary"}>
-                        {prescription.status}
-                      </Badge>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">No prescriptions yet</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -445,44 +590,101 @@ export default function PatientDetailPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {patient.labResults.map((result) => (
-                    <div key={result.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <TestTube className="w-6 h-6 text-primary" />
+                  {formattedPatient.labTests.length > 0 ? (
+                    formattedPatient.labTests.map((result: any) => (
+                      <div key={result.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                            <TestTube className="w-6 h-6 text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{result.test_name}</p>
+                            <p className="text-sm text-muted-foreground">Type: {result.test_type}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Ordered: {new Date(result.ordered_date).toLocaleDateString()}
+                            </p>
+                            {result.completed_date && (
+                              <p className="text-xs text-green-600 font-medium">
+                                ✓ Completed: {new Date(result.completed_date).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium">{result.testName}</p>
-                          <p className="text-sm text-muted-foreground">Date: {result.date}</p>
-                          <p className="text-xs text-muted-foreground">Results: {result.results}</p>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={result.status === "completed" ? "default" : "secondary"}>
+                            {result.status}
+                          </Badge>
+                          {result.status === "completed" && result.results && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                // Add patient name to the result object
+                                const labTestWithPatient = {
+                                  ...result,
+                                  patient_name: `${formattedPatient.profile.firstName} ${formattedPatient.profile.lastName}`
+                                }
+                                setSelectedLabTest(labTestWithPatient)
+                                setViewLabResultsModal(true)
+                              }}
+                            >
+                              <FileText className="w-4 h-4 mr-2" />
+                              View Results
+                            </Button>
+                          )}
                         </div>
                       </div>
-                      <Badge variant={result.status === "Completed" ? "default" : "secondary"}>
-                        {result.status}
-                      </Badge>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8">No lab tests yet</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="documents">
-            <Card>
-              <CardHeader>
-                <CardTitle>Documents & Reports</CardTitle>
-                <CardDescription>Medical documents and uploaded files</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="w-12 h-12 mx-auto mb-4" />
-                  <p>No documents uploaded yet</p>
-                </div>
-              </CardContent>
-            </Card>
+            <PatientMedicalHistory patientId={formattedPatient.id} />
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Modals */}
+      <CreatePrescriptionModal
+        isOpen={showPrescriptionModal}
+        onClose={() => setShowPrescriptionModal(false)}
+        patientId={formattedPatient.id}
+        patientName={`${formattedPatient.profile.firstName} ${formattedPatient.profile.lastName}`}
+        onSuccess={handlePrescriptionSuccess}
+      />
+
+      <CreateLabOrderModal
+        isOpen={showLabOrderModal}
+        onClose={() => setShowLabOrderModal(false)}
+        patientId={formattedPatient.id}
+        patientName={`${formattedPatient.profile.firstName} ${formattedPatient.profile.lastName}`}
+        onSuccess={handleLabOrderSuccess}
+      />
+
+      <ViewPrescriptionModal
+        isOpen={viewPrescriptionModal}
+        onClose={() => {
+          setViewPrescriptionModal(false)
+          setSelectedPrescription(null)
+        }}
+        prescription={selectedPrescription}
+        patientName={`${formattedPatient.profile.firstName} ${formattedPatient.profile.lastName}`}
+        doctorName={currentUser?.name || "Dr. [Name]"}
+      />
+
+      <ViewLabResultsModal
+        isOpen={viewLabResultsModal}
+        onClose={() => {
+          setViewLabResultsModal(false)
+          setSelectedLabTest(null)
+        }}
+        labTest={selectedLabTest}
+      />
     </div>
   )
 }

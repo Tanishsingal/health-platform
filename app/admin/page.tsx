@@ -21,107 +21,51 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 
-// Mock data for admin dashboard
-const ADMIN_DATA = {
-  profile: {
-    first_name: "Admin",
-    last_name: "User"
-  },
-  stats: {
-    totalUsers: 1250,
-    totalPatients: 890,
-    totalStaff: 45,
-    todayAppointments: 127
-  },
-  recentUsers: [
-    {
-      id: 1,
-      first_name: "John",
-      last_name: "Smith",
-      role: "patient",
-      created_at: "2024-01-14T10:00:00Z",
-      phone: "+1-555-0123"
-    },
-    {
-      id: 2,
-      first_name: "Dr. Sarah",
-      last_name: "Johnson",
-      role: "doctor", 
-      created_at: "2024-01-13T15:30:00Z",
-      phone: "+1-555-0124"
-    },
-    {
-      id: 3,
-      first_name: "Nurse Mary",
-      last_name: "Williams",
-      role: "nurse",
-      created_at: "2024-01-12T09:15:00Z",
-      phone: "+1-555-0125"
-    }
-  ],
-  pendingStaff: [
-    {
-      id: 1,
-      specialization: "Cardiology",
-      department: "Internal Medicine",
-      license_number: "MD12345",
-      years_of_experience: 8,
-      created_at: "2024-01-10T14:00:00Z",
-      user_profile: {
-        first_name: "Michael",
-        last_name: "Brown",
-        role: "doctor"
-      }
-    },
-    {
-      id: 2,
-      specialization: "Emergency Medicine",
-      department: "Emergency",
-      license_number: "RN67890",
-      years_of_experience: 5,
-      created_at: "2024-01-09T11:30:00Z",
-      user_profile: {
-        first_name: "Emily",
-        last_name: "Davis",
-        role: "nurse"
-      }
-    }
-  ]
-}
-
 export default function AdminDashboardPage() {
   const [currentUser, setCurrentUser] = useState<any>(null)
+  const [dashboardData, setDashboardData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
-    // Fetch current user from API
-    const fetchUser = async () => {
+    // Fetch current user and dashboard data from API
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/auth/me')
+        // Fetch user authentication
+        const authResponse = await fetch('/api/auth/me')
         
-        if (!response.ok) {
+        if (!authResponse.ok) {
           router.push('/auth/login')
           return
         }
         
-        const data = await response.json()
+        const authData = await authResponse.json()
         
-        if (data.user.role !== 'admin' && data.user.role !== 'super_admin') {
+        if (authData.user.role !== 'admin' && authData.user.role !== 'super_admin') {
           router.push('/auth/login')
           return
         }
         
-        setCurrentUser(data.user)
+        setCurrentUser(authData.user)
+
+        // Fetch dashboard data
+        const dashboardResponse = await fetch('/api/admin/dashboard')
+        
+        if (dashboardResponse.ok) {
+          const dashboardResult = await dashboardResponse.json()
+          if (dashboardResult.success) {
+            setDashboardData(dashboardResult.data)
+          }
+        }
       } catch (error) {
-        console.error('Failed to fetch user:', error)
+        console.error('Failed to fetch data:', error)
         router.push('/auth/login')
       } finally {
         setIsLoading(false)
       }
     }
     
-    fetchUser()
+    fetchData()
   }, [router])
 
   const handleLogout = async () => {
@@ -134,7 +78,7 @@ export default function AdminDashboardPage() {
     }
   }
 
-  if (isLoading || !currentUser) {
+  if (isLoading || !currentUser || !dashboardData) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
@@ -158,6 +102,12 @@ export default function AdminDashboardPage() {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              <Link href="/admin/blogs">
+                <Button size="sm" variant="outline">
+                  <FileText className="w-4 h-4 mr-2" />
+                  Blogs
+                </Button>
+              </Link>
               <Button size="sm" variant="outline">
                 <BarChart3 className="w-4 h-4 mr-2" />
                 Analytics
@@ -180,7 +130,7 @@ export default function AdminDashboardPage() {
       <div className="container mx-auto px-4 py-8">
         {/* Welcome Section */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Welcome, {ADMIN_DATA.profile.first_name}!</h1>
+          <h1 className="text-3xl font-bold mb-2">Welcome, Admin!</h1>
           <p className="text-muted-foreground">System overview and management dashboard</p>
         </div>
 
@@ -192,8 +142,8 @@ export default function AdminDashboardPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{ADMIN_DATA.stats.totalUsers}</div>
-              <p className="text-xs text-muted-foreground">{ADMIN_DATA.recentUsers.length} new this week</p>
+              <div className="text-2xl font-bold">{dashboardData.stats.totalUsers}</div>
+              <p className="text-xs text-muted-foreground">{dashboardData.recentUsers.length} new this week</p>
             </CardContent>
           </Card>
 
@@ -203,7 +153,7 @@ export default function AdminDashboardPage() {
               <UserPlus className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{ADMIN_DATA.stats.totalPatients}</div>
+              <div className="text-2xl font-bold">{dashboardData.stats.totalPatients}</div>
               <p className="text-xs text-muted-foreground">Registered patients</p>
             </CardContent>
           </Card>
@@ -214,7 +164,7 @@ export default function AdminDashboardPage() {
               <Activity className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{ADMIN_DATA.stats.totalStaff}</div>
+              <div className="text-2xl font-bold">{dashboardData.stats.totalStaff}</div>
               <p className="text-xs text-muted-foreground">Active staff members</p>
             </CardContent>
           </Card>
@@ -225,7 +175,7 @@ export default function AdminDashboardPage() {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{ADMIN_DATA.stats.todayAppointments}</div>
+              <div className="text-2xl font-bold">{dashboardData.stats.todayAppointments}</div>
               <p className="text-xs text-muted-foreground">Scheduled for today</p>
             </CardContent>
           </Card>
@@ -250,9 +200,9 @@ export default function AdminDashboardPage() {
                   <CardDescription>New users registered in the last 7 days</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {ADMIN_DATA.recentUsers.length ? (
+                  {dashboardData.recentUsers.length > 0 ? (
                     <div className="space-y-4">
-                      {ADMIN_DATA.recentUsers.map((user) => (
+                      {dashboardData.recentUsers.map((user: any) => (
                         <div key={user.id} className="flex items-center gap-4 p-3 border rounded-lg">
                           <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                             <Users className="w-5 h-5 text-primary" />
@@ -359,37 +309,47 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {ADMIN_DATA.recentUsers.slice(0, 8).map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex items-center gap-4 p-4 border rounded-lg hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <Users className="w-6 h-6 text-primary" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium">
-                            {user.first_name} {user.last_name}
-                          </p>
-                          <Badge variant="secondary" className="capitalize text-xs">
-                            {user.role}
-                          </Badge>
+                  {dashboardData.allUsers.length > 0 ? (
+                    dashboardData.allUsers.map((user: any) => (
+                      <div
+                        key={user.id}
+                        className="flex items-center gap-4 p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <Users className="w-6 h-6 text-primary" />
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {user.phone || "No phone"} • Joined {new Date(user.created_at).toLocaleDateString()}
-                        </p>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium">
+                              {user.first_name} {user.last_name}
+                            </p>
+                            <Badge variant="secondary" className="capitalize text-xs">
+                              {user.role}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {user.email || "No email"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {user.phone || "No phone"} • Joined {new Date(user.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline">
+                            View
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            Edit
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          View
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Edit
-                        </Button>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">No users found</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -420,46 +380,60 @@ export default function AdminDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {ADMIN_DATA.pendingStaff.map((staff) => (
-                    <div
-                      key={staff.id}
-                      className="flex items-center gap-4 p-4 border rounded-lg hover:bg-accent/50 transition-colors"
-                    >
-                      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <Activity className="w-6 h-6 text-primary" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium">
-                            Dr. {staff.user_profile.first_name} {staff.user_profile.last_name}
-                          </p>
-                          <Badge variant="secondary" className="capitalize text-xs">
-                            {staff.user_profile.role}
-                          </Badge>
+                  {dashboardData.allStaff.length > 0 ? (
+                    dashboardData.allStaff.map((staff: any) => (
+                      <div
+                        key={staff.id}
+                        className="flex items-center gap-4 p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                      >
+                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <Activity className="w-6 h-6 text-primary" />
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {staff.specialization} • {staff.department}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          License: {staff.license_number} • {staff.years_of_experience || 0} years experience
-                        </p>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium">
+                              {staff.role === 'doctor' && 'Dr. '}{staff.first_name} {staff.last_name}
+                            </p>
+                            <Badge variant="secondary" className="capitalize text-xs">
+                              {staff.role.replace('_', ' ')}
+                            </Badge>
+                          </div>
+                          {staff.specialization && (
+                            <p className="text-sm text-muted-foreground">
+                              {staff.specialization} {staff.department && `• ${staff.department}`}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {staff.email || "No email"} • {staff.phone || "No phone"}
+                          </p>
+                          {staff.license_number && (
+                            <p className="text-xs text-muted-foreground">
+                              License: {staff.license_number}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium">Active</p>
+                          <p className="text-xs text-muted-foreground">
+                            Since {new Date(staff.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline">
+                            View
+                          </Button>
+                          <Button size="sm" variant="outline">
+                            Edit
+                          </Button>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-medium">Active</p>
-                        <p className="text-xs text-muted-foreground">
-                          Since {new Date(staff.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline">
-                          View
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          Edit
-                        </Button>
-                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Activity className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">No staff members found</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -2,14 +2,38 @@
 
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardDescription, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Heart, Shield, Users, Calendar, FileText, Activity } from "lucide-react"
+import { Heart, Shield, Users, Calendar, FileText, Activity, ArrowRight, Newspaper } from "lucide-react"
 import { useTranslations } from '@/lib/i18n'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
+import { useEffect, useState } from "react"
 
 export default function HomePage() {
   const t = useTranslations();
+  const [blogs, setBlogs] = useState<any[]>([])
+  const [isLoadingBlogs, setIsLoadingBlogs] = useState(true)
+
+  useEffect(() => {
+    fetchBlogs()
+  }, [])
+
+  const fetchBlogs = async () => {
+    try {
+      const response = await fetch('/api/blogs')
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          // Get only the 3 most recent published blogs
+          setBlogs(result.data.slice(0, 3))
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch blogs:', error)
+    } finally {
+      setIsLoadingBlogs(false)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-accent/20 to-background">
@@ -148,8 +172,97 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Blog Section */}
+      <section className="py-16 px-4">
+        <div className="container mx-auto">
+          <div className="flex items-center justify-between mb-12">
+            <div>
+              <h2 className="text-3xl font-bold mb-2">Latest Healthcare News & Updates</h2>
+              <p className="text-muted-foreground">
+                Stay informed with the latest healthcare policies, tips, and platform updates
+              </p>
+            </div>
+            <Link href="/blogs">
+              <Button variant="outline" className="gap-2">
+                View All Blogs
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
+
+          {isLoadingBlogs ? (
+            <div className="grid md:grid-cols-3 gap-6">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="animate-pulse">
+                  <div className="w-full h-48 bg-gray-200"></div>
+                  <CardHeader>
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-full mb-1"></div>
+                    <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          ) : blogs.length > 0 ? (
+            <div className="grid md:grid-cols-3 gap-6">
+              {blogs.map((blog) => (
+                <Link key={blog.id} href={`/blogs/${blog.slug}`}>
+                  <Card className="h-full hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer overflow-hidden group">
+                    {blog.featured_image ? (
+                      <div className="w-full h-48 bg-gradient-to-br from-primary/20 to-accent overflow-hidden">
+                        <img
+                          src={blog.featured_image}
+                          alt={blog.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full h-48 bg-gradient-to-br from-primary/20 to-accent flex items-center justify-center">
+                        <Newspaper className="w-16 h-16 text-primary/40" />
+                      </div>
+                    )}
+                    <CardHeader>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Badge variant="outline" className="text-xs">
+                          {blog.category}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(blog.published_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <CardTitle className="line-clamp-2 group-hover:text-primary transition-colors">
+                        {blog.title}
+                      </CardTitle>
+                      <CardDescription className="line-clamp-3">
+                        {blog.excerpt}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Users className="w-4 h-4" />
+                        <span>
+                          {blog.first_name} {blog.last_name}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <Newspaper className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h3 className="text-xl font-semibold mb-2">No blogs yet</h3>
+              <p className="text-muted-foreground">
+                Check back soon for the latest healthcare news and updates!
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
+
       {/* CTA Section */}
-      <section className="py-20 px-4">
+      <section className="py-20 px-4 bg-accent/20">
         <div className="container mx-auto text-center max-w-3xl">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
             {t('home.cta.title', 'Ready to Transform Healthcare Delivery?')}

@@ -12,11 +12,29 @@ import { Separator } from "@/components/ui/separator"
 import { TestTube, Clock, CheckCircle, AlertTriangle, Microscope, FileText } from "lucide-react"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { TestResultsModal } from "@/components/laboratory/TestResultsModal"
 
 export default function LaboratoryPage() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [dashboardData, setDashboardData] = useState<any>(null)
+  const [selectedTest, setSelectedTest] = useState<any>(null)
+  const [showResultsModal, setShowResultsModal] = useState(false)
   const router = useRouter()
+
+  const fetchDashboardData = async () => {
+    try {
+      const response = await fetch('/api/laboratory/dashboard')
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          setDashboardData(result.data)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error)
+    }
+  }
 
   useEffect(() => {
     // Fetch current user from API
@@ -37,6 +55,9 @@ export default function LaboratoryPage() {
         }
         
         setCurrentUser(data.user)
+        
+        // Fetch dashboard data
+        await fetchDashboardData()
       } catch (error) {
         console.error('Failed to fetch user:', error)
         router.push('/auth/login')
@@ -58,7 +79,60 @@ export default function LaboratoryPage() {
     }
   }
 
-  if (isLoading || !currentUser) {
+  const handleStartTest = async (testId: string) => {
+    try {
+      const response = await fetch(`/api/laboratory/tests/${testId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: 'in_progress',
+          sample_collected_date: new Date().toISOString()
+        })
+      })
+
+      if (response.ok) {
+        alert('Test started successfully!')
+        await fetchDashboardData()
+      } else {
+        alert('Failed to start test')
+      }
+    } catch (error) {
+      console.error('Failed to start test:', error)
+      alert('Failed to start test')
+    }
+  }
+
+  const handleCompleteTest = async (testId: string) => {
+    setSelectedTest(dashboardData.inProgressTests.find((t: any) => t.id === testId))
+    setShowResultsModal(true)
+  }
+
+  const handleSubmitResults = async (testId: string, results: any) => {
+    try {
+      const response = await fetch(`/api/laboratory/tests/${testId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: 'completed',
+          results: results
+        })
+      })
+
+      if (response.ok) {
+        alert('Test completed and results submitted!')
+        setShowResultsModal(false)
+        setSelectedTest(null)
+        await fetchDashboardData()
+      } else {
+        alert('Failed to submit results')
+      }
+    } catch (error) {
+      console.error('Failed to submit results:', error)
+      alert('Failed to submit results')
+    }
+  }
+
+  if (isLoading || !currentUser || !dashboardData) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
@@ -66,72 +140,9 @@ export default function LaboratoryPage() {
     )
   }
 
-  // Mock data for laboratory system
-  const pendingTests = [
-    {
-      id: 1,
-      patient: "John Smith",
-      test: "Complete Blood Count",
-      priority: "High",
-      ordered: "2024-01-15 09:30",
-      doctor: "Dr. Johnson",
-    },
-    {
-      id: 2,
-      patient: "Sarah Wilson",
-      test: "Lipid Panel",
-      priority: "Normal",
-      ordered: "2024-01-15 10:15",
-      doctor: "Dr. Brown",
-    },
-    {
-      id: 3,
-      patient: "Mike Davis",
-      test: "Thyroid Function",
-      priority: "Urgent",
-      ordered: "2024-01-15 11:00",
-      doctor: "Dr. Smith",
-    },
-  ]
+  const { stats, pendingTests, inProgressTests, completedTests } = dashboardData
 
-  const inProgressTests = [
-    {
-      id: 4,
-      patient: "Emma Johnson",
-      test: "Liver Function",
-      priority: "Normal",
-      started: "2024-01-15 08:00",
-      estimated: "14:00",
-    },
-    {
-      id: 5,
-      patient: "David Brown",
-      test: "Glucose Test",
-      priority: "High",
-      started: "2024-01-15 09:00",
-      estimated: "15:30",
-    },
-  ]
-
-  const completedTests = [
-    {
-      id: 6,
-      patient: "Lisa Anderson",
-      test: "Urinalysis",
-      completed: "2024-01-14 16:30",
-      result: "Normal",
-      doctor: "Dr. Wilson",
-    },
-    {
-      id: 7,
-      patient: "Tom Wilson",
-      test: "Blood Chemistry",
-      completed: "2024-01-14 15:45",
-      result: "Abnormal",
-      doctor: "Dr. Johnson",
-    },
-  ]
-
+  // Mock equipment data (equipment management not implemented yet)
   const equipment = [
     {
       id: 1,
@@ -154,7 +165,13 @@ export default function LaboratoryPage() {
       lastMaintenance: "2024-01-12",
       nextMaintenance: "2024-02-12",
     },
-    { id: 4, name: "Centrifuge", status: "Online", lastMaintenance: "2024-01-05", nextMaintenance: "2024-02-05" },
+    {
+      id: 4,
+      name: "Centrifuge",
+      status: "Online",
+      lastMaintenance: "2024-01-05",
+      nextMaintenance: "2024-02-05",
+    },
   ]
 
   return (
@@ -188,7 +205,7 @@ export default function LaboratoryPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Pending Tests</p>
-                  <p className="text-2xl font-bold text-orange-600">{pendingTests.length}</p>
+                  <p className="text-2xl font-bold text-orange-600">{stats.pending}</p>
                 </div>
                 <Clock className="w-8 h-8 text-orange-600" />
               </div>
@@ -200,7 +217,7 @@ export default function LaboratoryPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">In Progress</p>
-                  <p className="text-2xl font-bold text-blue-600">{inProgressTests.length}</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.inProgress}</p>
                 </div>
                 <TestTube className="w-8 h-8 text-blue-600" />
               </div>
@@ -212,7 +229,7 @@ export default function LaboratoryPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-gray-600">Completed Today</p>
-                  <p className="text-2xl font-bold text-green-600">{completedTests.length}</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.completedToday}</p>
                 </div>
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
@@ -223,10 +240,10 @@ export default function LaboratoryPage() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Equipment Issues</p>
-                  <p className="text-2xl font-bold text-red-600">1</p>
+                  <p className="text-sm font-medium text-gray-600">Total Tests</p>
+                  <p className="text-2xl font-bold text-purple-600">{stats.total}</p>
                 </div>
-                <AlertTriangle className="w-8 h-8 text-red-600" />
+                <Microscope className="w-8 h-8 text-purple-600" />
               </div>
             </CardContent>
           </Card>
@@ -253,30 +270,36 @@ export default function LaboratoryPage() {
                   <CardDescription>Tests waiting to be processed</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {pendingTests.map((test) => (
-                    <div key={test.id} className="p-4 border rounded-lg space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">{test.patient}</h4>
-                        <Badge
-                          variant={
-                            test.priority === "Urgent"
-                              ? "destructive"
-                              : test.priority === "High"
-                                ? "default"
-                                : "secondary"
-                          }
+                  {pendingTests.length > 0 ? (
+                    pendingTests.map((test: any) => (
+                      <div key={test.id} className="p-4 border rounded-lg space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium">{test.patient_name}</h4>
+                          <Badge variant="secondary">{test.test_type}</Badge>
+                        </div>
+                        <p className="text-sm text-gray-600">{test.test_name}</p>
+                        <p className="text-xs text-gray-500">
+                          Ordered: {new Date(test.ordered_date).toLocaleString()}
+                        </p>
+                        <p className="text-xs text-gray-500">Doctor: {test.doctor_name}</p>
+                        {test.notes && (
+                          <p className="text-xs text-gray-500 italic">Notes: {test.notes}</p>
+                        )}
+                        <Button 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => handleStartTest(test.id)}
                         >
-                          {test.priority}
-                        </Badge>
+                          Start Test
+                        </Button>
                       </div>
-                      <p className="text-sm text-gray-600">{test.test}</p>
-                      <p className="text-xs text-gray-500">Ordered: {test.ordered}</p>
-                      <p className="text-xs text-gray-500">Doctor: {test.doctor}</p>
-                      <Button size="sm" className="w-full">
-                        Start Test
-                      </Button>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-8">
+                      <Clock className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>No pending tests</p>
                     </div>
-                  ))}
+                  )}
                 </CardContent>
               </Card>
 
@@ -290,20 +313,34 @@ export default function LaboratoryPage() {
                   <CardDescription>Currently running tests</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {inProgressTests.map((test) => (
-                    <div key={test.id} className="p-4 border rounded-lg space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">{test.patient}</h4>
-                        <Badge variant="outline">In Progress</Badge>
+                  {inProgressTests.length > 0 ? (
+                    inProgressTests.map((test: any) => (
+                      <div key={test.id} className="p-4 border rounded-lg space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium">{test.patient_name}</h4>
+                          <Badge variant="outline">In Progress</Badge>
+                        </div>
+                        <p className="text-sm text-gray-600">{test.test_name}</p>
+                        <p className="text-xs text-gray-500">
+                          Started: {test.sample_collected_date ? new Date(test.sample_collected_date).toLocaleString() : 'N/A'}
+                        </p>
+                        <p className="text-xs text-gray-500">Type: {test.test_type}</p>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="w-full bg-transparent"
+                          onClick={() => handleCompleteTest(test.id)}
+                        >
+                          Enter Results
+                        </Button>
                       </div>
-                      <p className="text-sm text-gray-600">{test.test}</p>
-                      <p className="text-xs text-gray-500">Started: {test.started}</p>
-                      <p className="text-xs text-gray-500">Est. Complete: {test.estimated}</p>
-                      <Button size="sm" variant="outline" className="w-full bg-transparent">
-                        View Details
-                      </Button>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-8">
+                      <TestTube className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>No tests in progress</p>
                     </div>
-                  ))}
+                  )}
                 </CardContent>
               </Card>
 
@@ -317,20 +354,29 @@ export default function LaboratoryPage() {
                   <CardDescription>Recently completed tests</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {completedTests.map((test) => (
-                    <div key={test.id} className="p-4 border rounded-lg space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium">{test.patient}</h4>
-                        <Badge variant={test.result === "Normal" ? "default" : "destructive"}>{test.result}</Badge>
+                  {completedTests.length > 0 ? (
+                    completedTests.map((test: any) => (
+                      <div key={test.id} className="p-4 border rounded-lg space-y-2">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium">{test.patient_name}</h4>
+                          <Badge variant="default">Completed</Badge>
+                        </div>
+                        <p className="text-sm text-gray-600">{test.test_name}</p>
+                        <p className="text-xs text-gray-500">
+                          Completed: {test.completed_date ? new Date(test.completed_date).toLocaleString() : 'N/A'}
+                        </p>
+                        <p className="text-xs text-gray-500">Doctor: {test.doctor_name}</p>
+                        {test.results && (
+                          <p className="text-xs text-gray-500 text-green-600">✓ Results submitted</p>
+                        )}
                       </div>
-                      <p className="text-sm text-gray-600">{test.test}</p>
-                      <p className="text-xs text-gray-500">Completed: {test.completed}</p>
-                      <p className="text-xs text-gray-500">Doctor: {test.doctor}</p>
-                      <Button size="sm" variant="outline" className="w-full bg-transparent">
-                        Send Results
-                      </Button>
+                    ))
+                  ) : (
+                    <div className="text-center text-gray-500 py-8">
+                      <CheckCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                      <p>No completed tests today</p>
                     </div>
-                  ))}
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -475,6 +521,17 @@ export default function LaboratoryPage() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Results Entry Modal */}
+        <TestResultsModal
+          isOpen={showResultsModal}
+          onClose={() => {
+            setShowResultsModal(false)
+            setSelectedTest(null)
+          }}
+          test={selectedTest}
+          onSubmit={handleSubmitResults}
+        />
       </div>
     </div>
   )

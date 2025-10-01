@@ -188,7 +188,11 @@ export default function DoctorDashboardPage() {
                 {todayAppointments.length > 0 ? (
                   <div className="space-y-4">
                     {todayAppointments.map((appointment: any) => (
-                      <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div 
+                        key={appointment.id} 
+                        onClick={() => router.push(`/doctor/patients/${appointment.patient_id}`)}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                      >
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
                             <Users className="w-6 h-6 text-primary" />
@@ -244,7 +248,11 @@ export default function DoctorDashboardPage() {
                 {upcomingAppointments.length > 0 ? (
                   <div className="space-y-4">
                     {upcomingAppointments.map((appointment: any) => (
-                      <div key={appointment.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div 
+                        key={appointment.id} 
+                        onClick={() => router.push(`/doctor/patients/${appointment.patient_id}`)}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                      >
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center">
                             <Calendar className="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -294,7 +302,11 @@ export default function DoctorDashboardPage() {
                 {recentPatients.length > 0 ? (
                   <div className="space-y-4">
                     {recentPatients.map((record: any) => (
-                      <div key={record.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                      <div 
+                        key={record.id} 
+                        onClick={() => router.push(`/doctor/patients/${record.patient_id}`)}
+                        className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                      >
                         <div className="flex items-center gap-4">
                           <div className="w-10 h-10 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center">
                             <Users className="w-5 h-5 text-green-600 dark:text-green-400" />

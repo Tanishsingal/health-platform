@@ -98,6 +98,25 @@ export async function GET(request: NextRequest) {
       [patient.id]
     );
 
+    // Get lab tests (with error handling)
+    let labTestsResult = { rows: [] };
+    try {
+      labTestsResult = await query(
+        `SELECT lt.*,
+                dup.first_name as doctor_first_name,
+                dup.last_name as doctor_last_name
+         FROM lab_tests lt
+         LEFT JOIN doctors d ON lt.ordered_by = d.id
+         LEFT JOIN user_profiles dup ON d.user_id = dup.user_id
+         WHERE lt.patient_id = $1
+         ORDER BY lt.ordered_date DESC
+         LIMIT 10`,
+        [patient.id]
+      );
+    } catch (error) {
+      console.log('Lab tests table not found or error fetching lab tests');
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -105,6 +124,7 @@ export async function GET(request: NextRequest) {
         upcomingAppointments: appointmentsResult.rows,
         activePrescriptions: prescriptionsResult.rows,
         recentRecords: recordsResult.rows,
+        labTests: labTestsResult.rows,
       }
     });
 

@@ -7,12 +7,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Heart, Calendar, FileText, Activity, Pill, Bell, Plus, X } from "lucide-react"
+import { Heart, Calendar, FileText, Activity, Pill, Bell, Plus, X, User, TestTube } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useTranslations } from '@/lib/i18n'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
+import { ProfileUpdateModal } from '@/components/patient/ProfileUpdateModal'
+import { MedicalHistoryUpload } from '@/components/patient/MedicalHistoryUpload'
+import { ViewPrescriptionModal } from '@/components/doctor/ViewPrescriptionModal'
+import { ViewLabResultsModal } from '@/components/doctor/ViewLabResultsModal'
 
 export default function PatientDashboardPage() {
   const t = useTranslations('dashboard.patient')
@@ -20,6 +24,10 @@ export default function PatientDashboardPage() {
   const [dashboardData, setDashboardData] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [showBookingModal, setShowBookingModal] = useState(false)
+  const [viewPrescriptionModal, setViewPrescriptionModal] = useState(false)
+  const [selectedPrescription, setSelectedPrescription] = useState<any>(null)
+  const [viewLabResultsModal, setViewLabResultsModal] = useState(false)
+  const [selectedLabTest, setSelectedLabTest] = useState<any>(null)
   const [doctors, setDoctors] = useState<any[]>([])
   const [bookingForm, setBookingForm] = useState({
     doctorId: '',
@@ -28,6 +36,11 @@ export default function PatientDashboardPage() {
     reason: ''
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
+  const [showMedicalHistory, setShowMedicalHistory] = useState(false)
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [showNotifications, setShowNotifications] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -60,6 +73,9 @@ export default function PatientDashboardPage() {
             setDashboardData(dashboardResult.data)
           }
         }
+        
+        // Fetch notifications
+        await fetchNotifications()
       } catch (error) {
         console.error('Failed to fetch data:', error)
       } finally {
@@ -69,6 +85,76 @@ export default function PatientDashboardPage() {
     
     fetchData()
   }, [router])
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await fetch('/api/notifications')
+      if (response.ok) {
+        const result = await response.json()
+        if (result.success) {
+          setNotifications(result.data.notifications)
+          setUnreadCount(result.data.unreadCount)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch notifications:', error)
+    }
+  }
+
+  const markAsRead = async (notificationId: string) => {
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId })
+      })
+      if (response.ok) {
+        // Refresh notifications
+        fetchNotifications()
+      }
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error)
+    }
+  }
+
+  const markAllAsRead = async () => {
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markAllAsRead: true })
+      })
+      if (response.ok) {
+        // Refresh notifications
+        fetchNotifications()
+      }
+    } catch (error) {
+      console.error('Failed to mark all as read:', error)
+    }
+  }
+
+  const refreshDashboard = () => {
+    // Reload dashboard data after profile update or document upload
+    const fetchData = async () => {
+      try {
+        const dashboardResponse = await fetch('/api/patient/dashboard')
+        
+        if (dashboardResponse.ok) {
+          const dashboardResult = await dashboardResponse.json()
+          if (dashboardResult.success) {
+            setDashboardData(dashboardResult.data)
+          }
+        }
+        
+        // Also refresh notifications
+        fetchNotifications()
+      } catch (error) {
+        console.error('Failed to fetch data:', error)
+      }
+    }
+    
+    fetchData()
+  }
 
   const handleLogout = async () => {
     try {
@@ -191,9 +277,80 @@ export default function PatientDashboardPage() {
             </div>
             <div className="flex items-center gap-3">
               <LanguageSwitcher />
-              <Button variant="ghost" size="sm">
-                <Bell className="w-4 h-4" />
-              </Button>
+              
+              {/* Notifications Bell */}
+              <div className="relative">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative"
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </Button>
+                
+                {/* Notifications Dropdown */}
+                {showNotifications && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto">
+                    <div className="p-4 border-b flex items-center justify-between">
+                      <h3 className="font-semibold">Notifications</h3>
+                      {unreadCount > 0 && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={markAllAsRead}
+                          className="text-xs"
+                        >
+                          Mark all as read
+                        </Button>
+                      )}
+                    </div>
+                    <div className="divide-y">
+                      {notifications.length > 0 ? (
+                        notifications.slice(0, 10).map((notification) => (
+                          <div
+                            key={notification.id}
+                            className={`p-4 hover:bg-accent cursor-pointer ${
+                              !notification.is_read ? 'bg-blue-50' : ''
+                            }`}
+                            onClick={() => {
+                              if (!notification.is_read) {
+                                markAsRead(notification.id)
+                              }
+                            }}
+                          >
+                            <div className="flex items-start gap-2">
+                              <div className={`w-2 h-2 rounded-full mt-2 ${
+                                !notification.is_read ? 'bg-blue-500' : 'bg-gray-300'
+                              }`} />
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">{notification.title}</p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {notification.message}
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {new Date(notification.created_at).toLocaleString()}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-8 text-center text-muted-foreground">
+                          <Bell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p className="text-sm">No notifications yet</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <Badge variant="secondary" className="capitalize">
                 {currentUser.email}
               </Badge>
@@ -333,19 +490,32 @@ export default function PatientDashboardPage() {
                 {activePrescriptions.length > 0 ? (
                   <div className="space-y-3">
                     {activePrescriptions.map((prescription: any) => (
-                      <div key={prescription.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div key={prescription.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors">
                         <div className="flex items-center gap-3">
                           <Pill className="w-5 h-5 text-primary" />
                           <div>
-                            <p className="font-medium">{prescription.medication_name}</p>
+                            <p className="font-medium">{prescription.dosage}</p>
                             <p className="text-sm text-muted-foreground">
-                              {prescription.dosage} • {prescription.frequency}
+                              {prescription.frequency}
                             </p>
                           </div>
                         </div>
-                        <Badge variant={prescription.status === 'filled' ? 'default' : 'secondary'}>
-                          {prescription.status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <Badge variant={prescription.status === 'filled' ? 'default' : 'secondary'}>
+                            {prescription.status}
+                          </Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedPrescription(prescription)
+                              setViewPrescriptionModal(true)
+                            }}
+                          >
+                            <FileText className="w-3 h-3 mr-1" />
+                            View
+                          </Button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -353,6 +523,73 @@ export default function PatientDashboardPage() {
                   <div className="text-center py-6">
                     <Pill className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                     <p className="text-muted-foreground text-sm">No active prescriptions</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Lab Results */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Lab Test Results</CardTitle>
+                <CardDescription>Your recent lab tests and results</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {dashboardData?.labTests && dashboardData.labTests.length > 0 ? (
+                  <div className="space-y-3">
+                    {dashboardData.labTests.map((test: any) => (
+                      <div key={test.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <Activity className="w-5 h-5 text-purple-600" />
+                          </div>
+                          <div>
+                            <p className="font-medium">{test.test_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Ordered: {new Date(test.ordered_date).toLocaleDateString()}
+                            </p>
+                            {test.doctor_first_name && (
+                              <p className="text-xs text-muted-foreground">
+                                By: Dr. {test.doctor_first_name} {test.doctor_last_name}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge 
+                            variant={
+                              test.status === 'completed' ? 'default' : 
+                              test.status === 'in_progress' ? 'secondary' : 
+                              'outline'
+                            }
+                          >
+                            {test.status}
+                          </Badge>
+                          {test.status === 'completed' && test.results && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const labTestWithPatient = {
+                                  ...test,
+                                  patient_name: `${dashboardData.profile.first_name} ${dashboardData.profile.last_name}`
+                                }
+                                setSelectedLabTest(labTestWithPatient)
+                                setViewLabResultsModal(true)
+                              }}
+                            >
+                              <FileText className="w-4 h-4 mr-1" />
+                              View Results
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Activity className="w-12 h-12 mx-auto text-muted-foreground opacity-50 mb-2" />
+                    <p className="text-muted-foreground text-sm">No lab tests yet</p>
                   </div>
                 )}
               </CardContent>
@@ -375,9 +612,13 @@ export default function PatientDashboardPage() {
                   <Calendar className="w-4 h-4 mr-2" />
                   Book Appointment
                 </Button>
-                <Button className="w-full justify-start bg-transparent" variant="outline">
+                <Button 
+                  className="w-full justify-start bg-transparent" 
+                  variant="outline"
+                  onClick={() => setShowMedicalHistory(!showMedicalHistory)}
+                >
                   <FileText className="w-4 h-4 mr-2" />
-                  View Medical Records
+                  {showMedicalHistory ? 'Hide' : 'View'} Medical Records
                 </Button>
                 <Button className="w-full justify-start bg-transparent" variant="outline">
                   <Pill className="w-4 h-4 mr-2" />
@@ -428,7 +669,13 @@ export default function PatientDashboardPage() {
                 )}
 
                 <div className="pt-2">
-                  <Button variant="outline" size="sm" className="w-full bg-transparent">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full bg-transparent"
+                    onClick={() => setShowProfileModal(true)}
+                  >
+                    <User className="w-4 h-4 mr-2" />
                     Update Profile
                   </Button>
                 </div>
@@ -436,7 +683,44 @@ export default function PatientDashboardPage() {
             </Card>
           </div>
         </div>
+
+        {/* Medical History Upload Section */}
+        {showMedicalHistory && (
+          <div className="mt-6">
+            <MedicalHistoryUpload onDocumentsChange={refreshDashboard} />
+          </div>
+        )}
       </div>
+
+      {/* Profile Update Modal */}
+      <ProfileUpdateModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        onUpdate={refreshDashboard}
+        currentProfile={profile}
+      />
+
+      {/* View Prescription Modal */}
+      <ViewPrescriptionModal
+        isOpen={viewPrescriptionModal}
+        onClose={() => {
+          setViewPrescriptionModal(false)
+          setSelectedPrescription(null)
+        }}
+        prescription={selectedPrescription}
+        patientName={profile ? `${profile.first_name} ${profile.last_name}` : "Patient"}
+        doctorName="Your Doctor"
+      />
+
+      {/* View Lab Results Modal */}
+      <ViewLabResultsModal
+        isOpen={viewLabResultsModal}
+        onClose={() => {
+          setViewLabResultsModal(false)
+          setSelectedLabTest(null)
+        }}
+        labTest={selectedLabTest}
+      />
 
       {/* Appointment Booking Modal */}
       {showBookingModal && (
